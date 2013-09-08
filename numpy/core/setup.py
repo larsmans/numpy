@@ -685,6 +685,17 @@ def configuration(parent_package='',top_path=None):
     config.add_npy_pkg_config("mlib.ini.in", "lib/npy-pkg-config",
             subst_dict)
 
+    ######################################################################
+    #                         npyrand library                             #
+    #######################################################################
+
+    config.add_installed_library('npyrand',
+            sources=[join('src', 'npyrand', 'randomkit.c'),
+                     join('src', 'npyrand', 'distributions.c')],
+            install_dir='lib')
+    config.add_npy_pkg_config("npyrand.ini.in", "lib/npy-pkg-config",
+            subst_dict)
+
     #######################################################################
     #                         npysort library                             #
     #######################################################################
