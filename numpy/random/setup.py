@@ -34,12 +34,12 @@ def configuration(parent_package='',top_path=None):
     if needs_mingw_ftime_workaround():
         defs.append(("NPY_NEEDS_MINGW_TIME_WORKAROUND", None))
 
-    libs = []
+    libs = ['npyrand']
     # Configure mtrand
     config.add_extension('mtrand',
                          sources=[join('mtrand', x) for x in
-                                  ['mtrand.c', 'randomkit.c', 'initarray.c',
-                                   'distributions.c']]+[generate_libraries],
+                                  ['mtrand.c', 'initarray.c']
+                                   ]+[generate_libraries],
                          libraries=libs,
                          depends = [join('mtrand', '*.h'),
                                     join('mtrand', '*.pyx'),
@@ -48,7 +48,6 @@ def configuration(parent_package='',top_path=None):
                          define_macros = defs,
                         )
 
-    config.add_data_files(('.', join('mtrand', 'randomkit.h')))
     config.add_data_dir('tests')
 
     return config

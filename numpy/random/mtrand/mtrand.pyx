@@ -1,4 +1,4 @@
-# mtrand.pyx -- A Pyrex wrapper of Jean-Sebastien Roy's RandomKit
+# mtrand.pyx -- Cython wrapper around the NumPy core random library (npyrand)
 #
 # Copyright 2005 Robert Kern (robert.kern@gmail.com)
 #
@@ -34,15 +34,15 @@ cdef extern from "math.h":
 cdef extern from "mtrand_py_helper.h":
     object empty_py_bytes(npy_intp length, void **bytes)
 
-cdef extern from "randomkit.h":
+cdef extern from "numpy/npy_rand.h":
 
-    ctypedef struct rk_state:
+    ctypedef struct NPY_RandomState:
         unsigned long key[624]
         int pos
         int has_gauss
         double gauss
 
-    ctypedef enum rk_error:
+    ctypedef enum NPY_RandomError:
         RK_NOERR = 0
         RK_ENODEV = 1
         RK_ERR_MAX = 2
@@ -52,72 +52,68 @@ cdef extern from "randomkit.h":
     # 0xFFFFFFFFUL
     unsigned long RK_MAX
 
-    void rk_seed(unsigned long seed, rk_state *state)
-    rk_error rk_randomseed(rk_state *state)
-    unsigned long rk_random(rk_state *state)
-    long rk_long(rk_state *state)
-    unsigned long rk_ulong(rk_state *state)
-    unsigned long rk_interval(unsigned long max, rk_state *state)
-    double rk_double(rk_state *state)
-    void rk_fill(void *buffer, size_t size, rk_state *state)
-    rk_error rk_devfill(void *buffer, size_t size, int strong)
-    rk_error rk_altfill(void *buffer, size_t size, int strong,
-            rk_state *state)
-    double rk_gauss(rk_state *state)
+    void rk_seed(NPY_RandomState *state, unsigned long seed)
+    NPY_RandomError rk_randomseed(NPY_RandomState *state)
+    unsigned long rk_random(NPY_RandomState *state)
+    long rk_long(NPY_RandomState *state)
+    unsigned long rk_ulong(NPY_RandomState *state)
+    unsigned long rk_interval(NPY_RandomState *state, unsigned long max)
+    double rk_double(NPY_RandomState *state)
+    void rk_fill(NPY_RandomState *state, void *buffer, size_t size)
+    NPY_RandomError rk_devfill(void *buffer, size_t size, int strong)
+    double rk_gauss(NPY_RandomState *state)
 
-cdef extern from "distributions.h":
+    double rk_normal(NPY_RandomState *state, double loc, double scale)
+    double rk_standard_exponential(NPY_RandomState *state)
+    double rk_exponential(NPY_RandomState *state, double scale)
+    double rk_uniform(NPY_RandomState *state, double loc, double scale)
+    double rk_standard_gamma(NPY_RandomState *state, double shape)
+    double rk_gamma(NPY_RandomState *state, double shape, double scale)
+    double rk_beta(NPY_RandomState *state, double a, double b)
+    double rk_chisquare(NPY_RandomState *state, double df)
+    double rk_noncentral_chisquare(NPY_RandomState *state, double df, double nonc)
+    double rk_f(NPY_RandomState *state, double dfnum, double dfden)
+    double rk_noncentral_f(NPY_RandomState *state, double dfnum, double dfden, double nonc)
+    double rk_standard_cauchy(NPY_RandomState *state)
+    double rk_standard_t(NPY_RandomState *state, double df)
+    double rk_vonmises(NPY_RandomState *state, double mu, double kappa)
+    double rk_pareto(NPY_RandomState *state, double a)
+    double rk_weibull(NPY_RandomState *state, double a)
+    double rk_power(NPY_RandomState *state, double a)
+    double rk_laplace(NPY_RandomState *state, double loc, double scale)
+    double rk_gumbel(NPY_RandomState *state, double loc, double scale)
+    double rk_logistic(NPY_RandomState *state, double loc, double scale)
+    double rk_lognormal(NPY_RandomState *state, double mode, double sigma)
+    double rk_rayleigh(NPY_RandomState *state, double mode)
+    double rk_wald(NPY_RandomState *state, double mean, double scale)
+    double rk_triangular(NPY_RandomState *state, double left, double mode, double right)
 
-    double rk_normal(rk_state *state, double loc, double scale)
-    double rk_standard_exponential(rk_state *state)
-    double rk_exponential(rk_state *state, double scale)
-    double rk_uniform(rk_state *state, double loc, double scale)
-    double rk_standard_gamma(rk_state *state, double shape)
-    double rk_gamma(rk_state *state, double shape, double scale)
-    double rk_beta(rk_state *state, double a, double b)
-    double rk_chisquare(rk_state *state, double df)
-    double rk_noncentral_chisquare(rk_state *state, double df, double nonc)
-    double rk_f(rk_state *state, double dfnum, double dfden)
-    double rk_noncentral_f(rk_state *state, double dfnum, double dfden, double nonc)
-    double rk_standard_cauchy(rk_state *state)
-    double rk_standard_t(rk_state *state, double df)
-    double rk_vonmises(rk_state *state, double mu, double kappa)
-    double rk_pareto(rk_state *state, double a)
-    double rk_weibull(rk_state *state, double a)
-    double rk_power(rk_state *state, double a)
-    double rk_laplace(rk_state *state, double loc, double scale)
-    double rk_gumbel(rk_state *state, double loc, double scale)
-    double rk_logistic(rk_state *state, double loc, double scale)
-    double rk_lognormal(rk_state *state, double mode, double sigma)
-    double rk_rayleigh(rk_state *state, double mode)
-    double rk_wald(rk_state *state, double mean, double scale)
-    double rk_triangular(rk_state *state, double left, double mode, double right)
+    long rk_binomial(NPY_RandomState *state, long n, double p)
+    long rk_binomial_btpe(NPY_RandomState *state, long n, double p)
+    long rk_binomial_inversion(NPY_RandomState *state, long n, double p)
+    long rk_negative_binomial(NPY_RandomState *state, double n, double p)
+    long rk_poisson(NPY_RandomState *state, double lam)
+    long rk_poisson_mult(NPY_RandomState *state, double lam)
+    long rk_poisson_ptrs(NPY_RandomState *state, double lam)
+    long rk_zipf(NPY_RandomState *state, double a)
+    long rk_geometric(NPY_RandomState *state, double p)
+    long rk_hypergeometric(NPY_RandomState *state, long good, long bad, long sample)
+    long rk_logseries(NPY_RandomState *state, double p)
 
-    long rk_binomial(rk_state *state, long n, double p)
-    long rk_binomial_btpe(rk_state *state, long n, double p)
-    long rk_binomial_inversion(rk_state *state, long n, double p)
-    long rk_negative_binomial(rk_state *state, double n, double p)
-    long rk_poisson(rk_state *state, double lam)
-    long rk_poisson_mult(rk_state *state, double lam)
-    long rk_poisson_ptrs(rk_state *state, double lam)
-    long rk_zipf(rk_state *state, double a)
-    long rk_geometric(rk_state *state, double p)
-    long rk_hypergeometric(rk_state *state, long good, long bad, long sample)
-    long rk_logseries(rk_state *state, double p)
+ctypedef double (* rk_cont0)(NPY_RandomState *state)
+ctypedef double (* rk_cont1)(NPY_RandomState *state, double a)
+ctypedef double (* rk_cont2)(NPY_RandomState *state, double a, double b)
+ctypedef double (* rk_cont3)(NPY_RandomState *state, double a, double b, double c)
 
-ctypedef double (* rk_cont0)(rk_state *state)
-ctypedef double (* rk_cont1)(rk_state *state, double a)
-ctypedef double (* rk_cont2)(rk_state *state, double a, double b)
-ctypedef double (* rk_cont3)(rk_state *state, double a, double b, double c)
-
-ctypedef long (* rk_disc0)(rk_state *state)
-ctypedef long (* rk_discnp)(rk_state *state, long n, double p)
-ctypedef long (* rk_discdd)(rk_state *state, double n, double p)
-ctypedef long (* rk_discnmN)(rk_state *state, long n, long m, long N)
-ctypedef long (* rk_discd)(rk_state *state, double a)
+ctypedef long (* rk_disc0)(NPY_RandomState *state)
+ctypedef long (* rk_discnp)(NPY_RandomState *state, long n, double p)
+ctypedef long (* rk_discdd)(NPY_RandomState *state, double n, double p)
+ctypedef long (* rk_discnmN)(NPY_RandomState *state, long n, long m, long N)
+ctypedef long (* rk_discd)(NPY_RandomState *state, double a)
 
 
 cdef extern from "initarray.h":
-   void init_by_array(rk_state *self, unsigned long *init_key,
+   void init_by_array(NPY_RandomState *self, unsigned long *init_key,
                       npy_intp key_length)
 
 # Initialize numpy
@@ -126,7 +122,7 @@ import_array()
 import numpy as np
 import operator
 
-cdef object cont0_array(rk_state *state, rk_cont0 func, object size):
+cdef object cont0_array(NPY_RandomState *state, rk_cont0 func, object size):
     cdef double *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -143,7 +139,7 @@ cdef object cont0_array(rk_state *state, rk_cont0 func, object size):
         return array
 
 
-cdef object cont1_array_sc(rk_state *state, rk_cont1 func, object size, double a):
+cdef object cont1_array_sc(NPY_RandomState *state, rk_cont1 func, object size, double a):
     cdef double *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -159,7 +155,7 @@ cdef object cont1_array_sc(rk_state *state, rk_cont1 func, object size, double a
             array_data[i] = func(state, a)
         return array
 
-cdef object cont1_array(rk_state *state, rk_cont1 func, object size, ndarray oa):
+cdef object cont1_array(NPY_RandomState *state, rk_cont1 func, object size, ndarray oa):
     cdef double *array_data
     cdef double *oa_data
     cdef ndarray array "arrayObject"
@@ -190,7 +186,7 @@ cdef object cont1_array(rk_state *state, rk_cont1 func, object size, ndarray oa)
             PyArray_MultiIter_NEXTi(multi, 1)
     return array
 
-cdef object cont2_array_sc(rk_state *state, rk_cont2 func, object size, double a,
+cdef object cont2_array_sc(NPY_RandomState *state, rk_cont2 func, object size, double a,
                            double b):
     cdef double *array_data
     cdef ndarray array "arrayObject"
@@ -208,7 +204,7 @@ cdef object cont2_array_sc(rk_state *state, rk_cont2 func, object size, double a
         return array
 
 
-cdef object cont2_array(rk_state *state, rk_cont2 func, object size,
+cdef object cont2_array(NPY_RandomState *state, rk_cont2 func, object size,
                         ndarray oa, ndarray ob):
     cdef double *array_data
     cdef double *oa_data
@@ -241,7 +237,7 @@ cdef object cont2_array(rk_state *state, rk_cont2 func, object size,
             PyArray_MultiIter_NEXTi(multi, 2)
     return array
 
-cdef object cont3_array_sc(rk_state *state, rk_cont3 func, object size, double a,
+cdef object cont3_array_sc(NPY_RandomState *state, rk_cont3 func, object size, double a,
                            double b, double c):
 
     cdef double *array_data
@@ -259,7 +255,7 @@ cdef object cont3_array_sc(rk_state *state, rk_cont3 func, object size, double a
             array_data[i] = func(state, a, b, c)
         return array
 
-cdef object cont3_array(rk_state *state, rk_cont3 func, object size, ndarray oa,
+cdef object cont3_array(NPY_RandomState *state, rk_cont3 func, object size, ndarray oa,
     ndarray ob, ndarray oc):
 
     cdef double *array_data
@@ -296,7 +292,7 @@ cdef object cont3_array(rk_state *state, rk_cont3 func, object size, ndarray oa,
             PyArray_MultiIter_NEXT(multi)
     return array
 
-cdef object disc0_array(rk_state *state, rk_disc0 func, object size):
+cdef object disc0_array(NPY_RandomState *state, rk_disc0 func, object size):
     cdef long *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -312,7 +308,7 @@ cdef object disc0_array(rk_state *state, rk_disc0 func, object size):
             array_data[i] = func(state)
         return array
 
-cdef object discnp_array_sc(rk_state *state, rk_discnp func, object size, long n, double p):
+cdef object discnp_array_sc(NPY_RandomState *state, rk_discnp func, object size, long n, double p):
     cdef long *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -328,7 +324,7 @@ cdef object discnp_array_sc(rk_state *state, rk_discnp func, object size, long n
             array_data[i] = func(state, n, p)
         return array
 
-cdef object discnp_array(rk_state *state, rk_discnp func, object size, ndarray on, ndarray op):
+cdef object discnp_array(NPY_RandomState *state, rk_discnp func, object size, ndarray on, ndarray op):
     cdef long *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -361,7 +357,7 @@ cdef object discnp_array(rk_state *state, rk_discnp func, object size, ndarray o
 
     return array
 
-cdef object discdd_array_sc(rk_state *state, rk_discdd func, object size, double n, double p):
+cdef object discdd_array_sc(NPY_RandomState *state, rk_discdd func, object size, double n, double p):
     cdef long *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -377,7 +373,7 @@ cdef object discdd_array_sc(rk_state *state, rk_discdd func, object size, double
             array_data[i] = func(state, n, p)
         return array
 
-cdef object discdd_array(rk_state *state, rk_discdd func, object size, ndarray on, ndarray op):
+cdef object discdd_array(NPY_RandomState *state, rk_discdd func, object size, ndarray on, ndarray op):
     cdef long *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -410,7 +406,7 @@ cdef object discdd_array(rk_state *state, rk_discdd func, object size, ndarray o
 
     return array
 
-cdef object discnmN_array_sc(rk_state *state, rk_discnmN func, object size,
+cdef object discnmN_array_sc(NPY_RandomState *state, rk_discnmN func, object size,
     long n, long m, long N):
     cdef long *array_data
     cdef ndarray array "arrayObject"
@@ -427,7 +423,7 @@ cdef object discnmN_array_sc(rk_state *state, rk_discnmN func, object size,
             array_data[i] = func(state, n, m, N)
         return array
 
-cdef object discnmN_array(rk_state *state, rk_discnmN func, object size,
+cdef object discnmN_array(NPY_RandomState *state, rk_discnmN func, object size,
     ndarray on, ndarray om, ndarray oN):
     cdef long *array_data
     cdef long *on_data
@@ -464,7 +460,7 @@ cdef object discnmN_array(rk_state *state, rk_discnmN func, object size,
 
     return array
 
-cdef object discd_array_sc(rk_state *state, rk_discd func, object size, double a):
+cdef object discd_array_sc(NPY_RandomState *state, rk_discd func, object size, double a):
     cdef long *array_data
     cdef ndarray array "arrayObject"
     cdef npy_intp length
@@ -480,7 +476,7 @@ cdef object discd_array_sc(rk_state *state, rk_discd func, object size, double a
             array_data[i] = func(state, a)
         return array
 
-cdef object discd_array(rk_state *state, rk_discd func, object size, ndarray oa):
+cdef object discd_array(NPY_RandomState *state, rk_discd func, object size, ndarray oa):
     cdef long *array_data
     cdef double *oa_data
     cdef ndarray array "arrayObject"
@@ -555,12 +551,11 @@ cdef class RandomState:
     of probability distributions to choose from.
 
     """
-    cdef rk_state *internal_state
+    cdef NPY_RandomState *internal_state
     poisson_lam_max = np.iinfo('l').max - np.sqrt(np.iinfo('l').max)*10
 
     def __init__(self, seed=None):
-        self.internal_state = <rk_state*>PyMem_Malloc(sizeof(rk_state))
-
+        self.internal_state = <NPY_RandomState*>PyMem_Malloc(sizeof(NPY_RandomState))
         self.seed(seed)
 
     def __dealloc__(self):
@@ -587,15 +582,15 @@ cdef class RandomState:
         RandomState
 
         """
-        cdef rk_error errcode
+        cdef NPY_RandomError errcode
         cdef ndarray obj "arrayObject_obj"
         if seed is None:
             errcode = rk_randomseed(self.internal_state)
         elif type(seed) is int:
-            rk_seed(seed, self.internal_state)
+            rk_seed(self.internal_state, seed)
         elif isinstance(seed, np.integer):
             iseed = int(seed)
-            rk_seed(iseed, self.internal_state)
+            rk_seed(self.internal_state, iseed)
         else:
             obj = <ndarray>PyArray_ContiguousFromObject(seed, NPY_LONG, 1, 1)
             init_by_array(self.internal_state, <unsigned long *>PyArray_DATA(obj),
@@ -878,14 +873,14 @@ cdef class RandomState:
 
         diff = <unsigned long>hi - <unsigned long>lo - 1UL
         if size is None:
-            rv = lo + <long>rk_interval(diff, self. internal_state)
+            rv = lo + <long>rk_interval(self. internal_state, diff)
             return rv
         else:
             array = <ndarray>np.empty(size, int)
             length = PyArray_SIZE(array)
             array_data = <long *>PyArray_DATA(array)
             for i from 0 <= i < length:
-                rv = lo + <long>rk_interval(diff, self. internal_state)
+                rv = lo + <long>rk_interval(self.internal_state, diff)
                 array_data[i] = rv
             return array
 
@@ -913,7 +908,7 @@ cdef class RandomState:
         """
         cdef void *bytes
         bytestring = empty_py_bytes(length, &bytes)
-        rk_fill(bytes, length, self.internal_state)
+        rk_fill(self.internal_state, bytes, length)
         return bytestring
 
 
@@ -4432,7 +4427,7 @@ cdef class RandomState:
             # rows; we need a bounce buffer.
             buf = np.empty(x.shape[1:], dtype=x.dtype)
             while i > 0:
-                j = rk_interval(i, self.internal_state)
+                j = rk_interval(self.internal_state, i)
                 buf[...] = x[j]
                 x[j] = x[i]
                 x[i] = buf
@@ -4442,7 +4437,7 @@ cdef class RandomState:
             # sequence types, indexing returns a real object that's
             # independent of the array contents, so we can just swap directly.
             while i > 0:
-                j = rk_interval(i, self.internal_state)
+                j = rk_interval(self.internal_state, i)
                 x[i], x[j] = x[j], x[i]
                 i = i - 1
 

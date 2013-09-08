@@ -4,7 +4,7 @@
  * The following changes have been made to it in 2005 by Robert Kern:
  *
  *   * init_by_array has been declared extern, has a void return, and uses the
- *     rk_state structure to hold its data.
+ *     NPY_RandomState structure to hold its data.
  *
  *  The original file has the following verbatim comments:
  *
@@ -76,11 +76,11 @@
 #include "initarray.h"
 
 static void
-init_genrand(rk_state *self, unsigned long s);
+init_genrand(NPY_RandomState *self, unsigned long s);
 
 /* initializes mt[RK_STATE_LEN] with a seed */
 static void
-init_genrand(rk_state *self, unsigned long s)
+init_genrand(NPY_RandomState *self, unsigned long s)
 {
     int mti;
     unsigned long *mt = self->key;
@@ -108,7 +108,7 @@ init_genrand(rk_state *self, unsigned long s)
  * key_length is its length
  */
 extern void
-init_by_array(rk_state *self, unsigned long init_key[], npy_intp key_length)
+init_by_array(NPY_RandomState *self, unsigned long init_key[], npy_intp key_length)
 {
     /* was signed in the original code. RDH 12/16/2002 */
     npy_intp i = 1;
