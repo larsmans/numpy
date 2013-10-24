@@ -83,13 +83,17 @@ class TestDot(TestCase):
         b1, b3 = self.b1, self.b3
         c1 = dot(b1, b3)
         c2 = dot_(b1, b3)
+        c3 = dot(b1[::-1], b3[::-1])
         assert_almost_equal(c1, c2, decimal=self.N)
+        assert_almost_equal(c1, c3, decimal=self.N)
 
     def test_vecvecinner(self):
         b1, b3 = self.b1, self.b3
         c1 = dot(b3, b1)
         c2 = dot_(b3, b1)
+        c3 = dot(b1[::-1], b3[::-1])
         assert_almost_equal(c1, c2, decimal=self.N)
+        assert_almost_equal(c1, c3, decimal=self.N)
 
     def test_columnvect1(self):
         b1 = ones((3, 1))

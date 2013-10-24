@@ -24,8 +24,27 @@ static char module_doc[] =
 
 static PyArray_DotFunc *oldFunctions[NPY_NTYPES];
 
-#define MAX(a, b)   ((a) > (b) ? (a) : (b))
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
+
+/*
+ * Convert NumPy stride and array base pointer for use by BLAS.
+ * Returns a BLAS stride or 0 when the conversion cannot be done.
+ * Modifies the array base pointer *p if necessary.
+ */
+static NPY_INLINE int
+blas_stride(void **p, npy_intp stride, size_t itemsize)
+{
+    if (stride == 0 || stride <= INT_MIN || stride > INT_MAX) {
+        /* BLAS can't handle these cases */
+        return 0;
+    }
+    else if (stride < 0) {
+        /* negative strides are unreliable across versions, so reverse */
+        *p = (char *)p + stride * itemsize;
+        return -stride;
+    }
+    return stride;
+}
 
 /*
  * The following functions do a "chunked" dot product using BLAS when
@@ -43,13 +62,10 @@ static void
 FLOAT_dot(void *a, npy_intp stridea, void *b, npy_intp strideb, void *res,
           npy_intp n, void *tmp)
 {
-    npy_intp na = stridea / (int)sizeof(float);
-    npy_intp nb = strideb / (int)sizeof(float);
+    int na = blas_stride(&a, stridea, sizeof(float));
+    int nb = blas_stride(&b, strideb, sizeof(float));
 
-    /* XXX we could handle negative strides as well */
-    if (stridea > 0 && strideb > 0 &&
-            stridea == sizeof(float) * na &&
-            strideb == sizeof(float) * nb) {
+    if (na && nb) {
         double r = 0.;          /* double for stability */
         float *fa = a, *fb = b;
 
@@ -72,12 +88,10 @@ static void
 DOUBLE_dot(void *a, npy_intp stridea, void *b, npy_intp strideb, void *res,
            npy_intp n, void *tmp)
 {
-    npy_intp na = stridea / (int)sizeof(double);
-    npy_intp nb = strideb / (int)sizeof(double);
+    int na = blas_stride(&a, stridea, sizeof(double));
+    int nb = blas_stride(&b, strideb, sizeof(double));
 
-    if (stridea > 0 && strideb > 0 &&
-            stridea == sizeof(double) * na &&
-            strideb == sizeof(double) * nb) {
+    if (na && nb) {
         double r = 0.;
         double *da = a, *db = b;
 
@@ -100,12 +114,10 @@ static void
 CFLOAT_dot(void *a, npy_intp stridea, void *b, npy_intp strideb, void *res,
            npy_intp n, void *tmp)
 {
-    npy_intp na = stridea / (int)sizeof(npy_cfloat);
-    npy_intp nb = strideb / (int)sizeof(npy_cfloat);
+    int na = blas_stride(&a, stridea, sizeof(npy_cfloat));
+    int nb = blas_stride(&b, strideb, sizeof(npy_cfloat));
 
-    if (stridea > 0 && strideb > 0 && n <= INT_MAX &&
-            stridea == sizeof(npy_cfloat) * na &&
-            strideb == sizeof(npy_cfloat) * nb) {
+    if (na && nb) {
         cblas_cdotu_sub((int)n, (float *)a, na, (float *)b, nb, (float *)res);
     }
     else {
@@ -117,12 +129,10 @@ static void
 CDOUBLE_dot(void *a, npy_intp stridea, void *b, npy_intp strideb, void *res,
             npy_intp n, void *tmp)
 {
-    npy_intp na = stridea / (int)sizeof(npy_cdouble);
-    npy_intp nb = strideb / (int)sizeof(npy_cdouble);
+    int na = blas_stride(&a, stridea, sizeof(npy_cdouble));
+    int nb = blas_stride(&b, strideb, sizeof(npy_cdouble));
 
-    if (stridea > 0 && strideb > 0 && n <= INT_MAX &&
-            stridea == sizeof(npy_cdouble) * na &&
-            strideb == sizeof(npy_cdouble) * nb) {
+    if (na && nb) {
         cblas_zdotu_sub((int)n, (double *)a, na, (double *)b, nb,
                         (double *)res);
     }
