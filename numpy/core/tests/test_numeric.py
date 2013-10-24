@@ -11,6 +11,7 @@ from numpy.core import *
 from numpy.random import rand, randint, randn
 from numpy.testing import *
 from numpy.core.multiarray import dot as dot_
+from numpy.lib.stride_tricks import as_strided
 
 
 class Vec(object):
@@ -91,9 +92,14 @@ class TestDot(TestCase):
         b1, b3 = self.b1, self.b3
         c1 = dot(b3, b1)
         c2 = dot_(b3, b1)
-        c3 = dot(b1[::-1], b3[::-1])
         assert_almost_equal(c1, c2, decimal=self.N)
-        assert_almost_equal(c1, c3, decimal=self.N)
+
+    def test_vecvec_zero_stride(self):
+        b1 = arange(10, dtype=float64)
+        b2 = as_strided(array([4.]), shape=(4,), strides=(0,))
+        c1 = np.sum(b1 * 4.)
+        c2 = dot(b1, b2)
+        assert_almost_equal(c1, c2, decimal=self.N)
 
     def test_columnvect1(self):
         b1 = ones((3, 1))

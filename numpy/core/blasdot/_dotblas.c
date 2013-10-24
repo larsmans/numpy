@@ -26,6 +26,8 @@ static PyArray_DotFunc *oldFunctions[NPY_NTYPES];
 
 #define MIN(a, b)   ((a) < (b) ? (a) : (b))
 
+#include <stdio.h>
+
 /*
  * Convert NumPy stride and array base pointer for use by BLAS.
  * Returns a BLAS stride or 0 when the conversion cannot be done.
@@ -50,10 +52,9 @@ blas_stride(void **p, npy_intp stride, size_t itemsize)
  * The following functions do a "chunked" dot product using BLAS when
  * sizeof(npy_intp) > sizeof(int), because BLAS libraries can typically not
  * handle more than INT_MAX elements per call.
- * The chunksize is the greatest power of two less than INT_MAX.
  */
 #if NPY_MAX_INTP > INT_MAX
-# define CHUNKSIZE  (INT_MAX / 2 + 1)
+# define CHUNKSIZE  (INT_MAX - 2)
 #else
 # define CHUNKSIZE  NPY_MAX_INTP
 #endif
@@ -91,6 +92,7 @@ DOUBLE_dot(void *a, npy_intp stridea, void *b, npy_intp strideb, void *res,
     int na = blas_stride(&a, stridea, sizeof(double));
     int nb = blas_stride(&b, strideb, sizeof(double));
 
+    puts("DOUBLE_dot");
     if (na && nb) {
         double r = 0.;
         double *da = a, *db = b;
