@@ -122,6 +122,7 @@ numpy/core/src/npysort/binsearch.c
 numpy/core/src/npysort/heapsort.c
 numpy/core/src/npysort/mergesort.c
 numpy/core/src/npysort/quicksort.c
+numpy/core/src/npysort/tinysort.h
 numpy/core/src/npysort/selection.c
 numpy/core/src/npysort/sort.c
 numpy/core/src/private/npy_binsearch.h

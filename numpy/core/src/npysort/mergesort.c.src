@@ -30,13 +30,11 @@
 
 #include "npy_sort.h"
 #include "npysort_common.h"
+#include "tinysort.h"
 #include <stdlib.h>
 
 #define NOT_USED NPY_UNUSED(unused)
-#define PYA_QS_STACK 100
-#define SMALL_QUICKSORT 15
 #define SMALL_MERGESORT 20
-#define SMALL_STRING 16
 
 
 /*
@@ -63,42 +61,40 @@
 static void
 mergesort0_@suff@(@type@ *pl, @type@ *pr, @type@ *pw)
 {
-    @type@ vp, *pi, *pj, *pk, *pm;
+    npy_intp n;
+    @type@ *pi, *pj, *pk, *pm;
 
-    if (pr - pl > SMALL_MERGESORT) {
-        /* merge sort */
-        pm = pl + ((pr - pl) >> 1);
-        mergesort0_@suff@(pl, pm, pw);
-        mergesort0_@suff@(pm, pr, pw);
-        for (pi = pw, pj = pl; pj < pm;) {
-            *pi++ = *pj++;
-        }
-        pi = pw + (pm - pl);
-        pj = pw;
-        pk = pl;
-        while (pj < pi && pm < pr) {
-            if (@TYPE@_LT(*pm, *pj)) {
-                *pk++ = *pm++;
+    n = pr - pl;
+    switch (n) {
+        case 0: break;
+        case 1: break;
+        case 2: tinysort2_@suff@(pl); break;
+        case 3: tinysort3_@suff@(pl); break;
+        case 4: tinysort4_@suff@(pl); break;
+        case 5: tinysort5_@suff@(pl); break;
+        case 6: tinysort6_@suff@(pl); break;
+
+        default:
+            pm = pl + (n >> 1);
+            mergesort0_@suff@(pl, pm, pw);
+            mergesort0_@suff@(pm, pr, pw);
+            for (pi = pw, pj = pl; pj < pm;) {
+                *pi++ = *pj++;
             }
-            else {
+            pi = pw + (pm - pl);
+            pj = pw;
+            pk = pl;
+            while (pj < pi && pm < pr) {
+                if (@TYPE@_LT(*pm, *pj)) {
+                    *pk++ = *pm++;
+                }
+                else {
+                    *pk++ = *pj++;
+                }
+            }
+            while(pj < pi) {
                 *pk++ = *pj++;
             }
-        }
-        while(pj < pi) {
-            *pk++ = *pj++;
-        }
-    }
-    else {
-        /* insertion sort */
-        for (pi = pl + 1; pi < pr; ++pi) {
-            vp = *pi;
-            pj = pi;
-            pk = pi - 1;
-            while (pj > pl && @TYPE@_LT(vp, *pk)) {
-                *pj-- = *pk--;
-            }
-            *pj = vp;
-        }
     }
 }
 

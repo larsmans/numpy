@@ -806,13 +806,13 @@ class TestMethods(TestCase):
         # all c scalar sorts use the same code with different types
         # so it suffices to run a quick check with one type. The number
         # of sorted items must be greater than ~50 to check the actual
-        # algorithm because quick and merge sort fall over to insertion
+        # algorithm because quick and merge sort fall over to a different
         # sort for small arrays.
         a = np.arange(101)
         b = a[::-1].copy()
         for kind in ['q', 'm', 'h'] :
             msg = "scalar sort, kind=%s" % kind
-            c = a.copy();
+            c = a.copy()
             c.sort(kind=kind)
             assert_equal(c, a, msg)
             c = b.copy();

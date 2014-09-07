@@ -1,0 +1,148 @@
+/* -*- c -*- */
+
+/*
+ * "Brute-force" sort for small arrays of numbers: computes the sorted indices
+ * of the items explicitly.
+ *
+ * This is fast because it is entirely branchless, and (for some types at
+ * least) all computations can be done in registers on modern CPUs. We rely on
+ * the compiler's ability to do common subexpression elimination to keep the
+ * code short.
+ *
+ * Written by Lars Buitinck.
+ * Inspired by Rex Kerr's post at http://stackoverflow.com/a/2792216.
+ */
+
+#ifndef TINYSORT_H
+#define TINYSORT_H
+
+
+/**begin repeat
+ *
+ * #TYPE = BOOL, BYTE, UBYTE, SHORT, USHORT, INT, UINT, LONG, ULONG,
+ *         LONGLONG, ULONGLONG, HALF, FLOAT, DOUBLE, LONGDOUBLE,
+ *         CFLOAT, CDOUBLE, CLONGDOUBLE, DATETIME, TIMEDELTA#
+ * #suff = bool, byte, ubyte, short, ushort, int, uint, long, ulong,
+ *         longlong, ulonglong, half, float, double, longdouble,
+ *         cfloat, cdouble, clongdouble, datetime, timedelta#
+ * #type = npy_bool, npy_byte, npy_ubyte, npy_short, npy_ushort, npy_int,
+ *         npy_uint, npy_long, npy_ulong, npy_longlong, npy_ulonglong,
+ *         npy_ushort, npy_float, npy_double, npy_longdouble, npy_cfloat,
+ *         npy_cdouble, npy_clongdouble, npy_datetime, npy_timedelta#
+ */
+
+#define GT(i, j) (@TYPE@_LT(a ## j, a ## i))
+#define LE(i, j) (!@TYPE@_LT(a ## j, a ## i))
+
+static NPY_INLINE void
+tinysort2_@suff@(@type@ *a)
+{
+    @type@ a0, a1;
+
+    a0 = a[0];
+    a1 = a[1];
+
+    a[0] = LE(0, 1) ? a0 : a1;
+    a[1] = GT(0, 1) ? a0 : a1;
+}
+
+static NPY_INLINE void
+tinysort3_@suff@(@type@ *a)
+{
+    int p0, p1, p2;
+    @type@ a0, a1, a2;
+
+    a0 = a[0];
+    a1 = a[1];
+    a2 = a[2];
+
+    p0 = GT(0, 1) + GT(0, 2);
+    p1 = LE(0, 1) + GT(1, 2);
+    p2 = LE(0, 2) + LE(1, 2);
+
+    a[p0] = a0;
+    a[p1] = a1;
+    a[p2] = a2;
+}
+
+static NPY_INLINE void
+tinysort4_@suff@(@type@ *a)
+{
+    int p0, p1, p2, p3;
+    @type@ a0, a1, a2, a3;
+
+    a0 = a[0];
+    a1 = a[1];
+    a2 = a[2];
+    a3 = a[3];
+
+    p0 = GT(0, 1) + GT(0, 2) + GT(0, 3);
+    p1 = LE(0, 1) + GT(1, 2) + GT(1, 3);
+    p2 = LE(0, 2) + LE(1, 2) + GT(2, 3);
+    p3 = 6 - (p0 + p1 + p2);
+
+    a[p0] = a0;
+    a[p1] = a1;
+    a[p2] = a2;
+    a[p3] = a3;
+}
+
+static NPY_INLINE void
+tinysort5_@suff@(@type@ *a)
+{
+    int p0, p1, p2, p3, p4;
+    @type@ a0, a1, a2, a3, a4;
+
+    a0 = a[0];
+    a1 = a[1];
+    a2 = a[2];
+    a3 = a[3];
+    a4 = a[4];
+
+    p0 = GT(0, 1) + GT(0, 2) + GT(0, 3) + GT(0, 4);
+    p1 = LE(0, 1) + GT(1, 2) + GT(1, 3) + GT(1, 4);
+    p2 = LE(0, 2) + LE(1, 2) + GT(2, 3) + GT(2, 4);
+    p3 = LE(0, 3) + LE(1, 3) + LE(2, 3) + GT(3, 4);
+    p4 = 10 - (p0 + p1 + p2);
+
+    a[p0] = a0;
+    a[p1] = a1;
+    a[p2] = a2;
+    a[p3] = a3;
+    a[p4] = a4;
+}
+
+static NPY_INLINE void
+tinysort6_@suff@(@type@ *a)
+{
+    int p0, p1, p2, p3, p4, p5;
+    @type@ a0, a1, a2, a3, a4, a5;
+
+    a0 = a[0];
+    a1 = a[1];
+    a2 = a[2];
+    a3 = a[3];
+    a4 = a[4];
+    a5 = a[5];
+
+    p0 = GT(0, 1) + GT(0, 2) + GT(0, 3) + GT(0, 4) + GT(0, 5);
+    p1 = LE(0, 1) + GT(1, 2) + GT(1, 3) + GT(1, 4) + GT(1, 5);
+    p2 = LE(0, 2) + LE(1, 2) + GT(2, 3) + GT(2, 4) + GT(2, 5);
+    p3 = LE(0, 3) + LE(1, 3) + LE(2, 3) + GT(3, 4) + GT(3, 5);
+    p4 = LE(0, 4) + LE(1, 4) + LE(2, 4) + LE(3, 4) + GT(4, 5);
+    p5 = 15 - (p0 + p1 + p2 + p3 + p4);
+
+    a[p0] = a0;
+    a[p1] = a1;
+    a[p2] = a2;
+    a[p3] = a3;
+    a[p4] = a4;
+    a[p5] = a5;
+}
+
+#undef GT
+#undef LE
+
+/**end repeat**/
+
+#endif
