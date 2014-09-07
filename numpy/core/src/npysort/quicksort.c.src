@@ -12,6 +12,8 @@
  *
  * The original sorting code is due to Charles R. Harris who wrote
  * it for numarray.
+ *
+ * Sorting networks were added by Lars Buitinck.
  */
 
 /*
@@ -31,13 +33,14 @@
 #include "npy_sort.h"
 #include "npysort_common.h"
 #include "movenans.h"
+#include "numpy/npy_math.h"
 #include <stdlib.h>
 
 #define NOT_USED NPY_UNUSED(unused)
 #define PYA_QS_STACK 100
-#define SMALL_QUICKSORT 15
-#define SMALL_MERGESORT 20
+#define SMALL_QUICKSORT 16  /* size of greatest hardcoded sorting net */
 #define SMALL_STRING 16
+
 
 
 /*
@@ -45,6 +48,273 @@
  **                            NUMERIC SORTS                                **
  *****************************************************************************
  */
+
+
+/*
+ * Specialized sorts for small arrays. For float and double, we use optimal
+ * sorting networks. All others get an insertion sort.
+ *
+ * Sorting nets were generated using http://pages.ripco.net/~jgamble/nw.html,
+ * which generates length-optimal (not maximally parallel) sorting nets for
+ * n<=10 (http://arxiv.org/abs/1405.5754) and the best currently known ones
+ * for n>10. Some common sequences of swaps were factored out by hand.
+ */
+
+/**begin repeat
+ *
+ * #suff = float, double#
+ * #type = npy_float, npy_double#
+ */
+/**begin repeat1
+ *
+ * #arg = 0, 1#
+ * #ARG = , a#
+ */
+
+#if !@arg@
+/* Use > and <, to make GCC generate min/max instructions on x86-64. */
+#   define SWAP(i, j) do { \
+        @type@ mx = a[i] > a[j] ? a[i] : a[j]; \
+        @type@ mn = a[i] < a[j] ? a[i] : a[j]; \
+        a[i] = mn; \
+        a[j] = mx; \
+    } while (0)
+
+#else
+
+#   define SWAP(i, j) do { \
+        npy_intp mx = a[i] >  a[j] ? ind[i] : ind[j]; \
+        npy_intp mn = a[i] <= a[j] ? ind[i] : ind[j]; \
+        ind[i] = mn; \
+        ind[j] = mx; \
+    } while (0)
+
+#endif
+
+#define NETSORT3 {  \
+    SWAP(1, 2);     \
+    SWAP(0, 2);     \
+    SWAP(0, 1);     \
+}
+
+#define NETSORT4 {  \
+    SWAP(0, 1); SWAP(2, 3); SWAP(0, 2); SWAP(1, 3); SWAP(1, 2); \
+}
+
+#define NETSORT5 {  \
+    SWAP(0, 1); SWAP(3, 4); SWAP(2, 4); SWAP(2, 3); SWAP(0, 3); \
+    SWAP(0, 2); SWAP(1, 4); SWAP(1, 3); SWAP(1, 2);             \
+}
+
+#define NETSORT6 {  \
+    NETSORT3;       \
+    SWAP(4, 5); SWAP(3, 5); SWAP(3, 4); SWAP(0, 3); SWAP(1, 4); \
+    SWAP(2, 5); SWAP(2, 4); SWAP(1, 3); SWAP(2, 3);             \
+}
+
+#define NETSORT7 {  \
+    NETSORT3;       \
+    SWAP(3, 4); SWAP(5, 6); SWAP(3, 5); SWAP(4, 6); SWAP(4, 5); \
+    SWAP(0, 4); SWAP(0, 3); SWAP(1, 5); SWAP(2, 6); SWAP(2, 5); \
+    SWAP(1, 3); SWAP(2, 4); SWAP(2, 3);                         \
+}
+
+#define NETSORT8 {  \
+    NETSORT4;       \
+    SWAP(4, 5); SWAP(6, 7); SWAP(4, 6); SWAP(5, 7); SWAP(5, 6); \
+    SWAP(0, 4); SWAP(1, 5); SWAP(1, 4); SWAP(2, 6); SWAP(3, 7); \
+    SWAP(3, 6); SWAP(2, 4); SWAP(3, 5); SWAP(3, 4);             \
+}
+
+#define NETSORT9 {  \
+    SWAP(0, 1); SWAP(3, 4); SWAP(6, 7); SWAP(1, 2); SWAP(4, 5); \
+    SWAP(7, 8); SWAP(0, 1); SWAP(3, 4); SWAP(6, 7); SWAP(0, 3); \
+    SWAP(3, 6); SWAP(0, 3); SWAP(1, 4); SWAP(4, 7); SWAP(1, 4); \
+    SWAP(2, 5); SWAP(5, 8); SWAP(2, 5); SWAP(1, 3); SWAP(5, 7); \
+    SWAP(2, 6); SWAP(4, 6); SWAP(2, 4); SWAP(2, 3); SWAP(5, 6); \
+}
+
+#define NETSORT10 { \
+    SWAP(4, 9); SWAP(3, 8); SWAP(2, 7); SWAP(1, 6); SWAP(0, 5); \
+    SWAP(1, 4); SWAP(6, 9); SWAP(0, 3); SWAP(5, 8); SWAP(0, 2); \
+    SWAP(3, 6); SWAP(7, 9); SWAP(0, 1); SWAP(2, 4); SWAP(5, 7); \
+    SWAP(8, 9); SWAP(1, 2); SWAP(4, 6); SWAP(7, 8); SWAP(3, 5); \
+    SWAP(2, 5); SWAP(6, 8); SWAP(1, 3); SWAP(4, 7); SWAP(2, 3); \
+    SWAP(6, 7); SWAP(3, 4); SWAP(5, 6); SWAP(4, 5);             \
+}
+
+/* Common prefix for 11, 12. */
+#define PREFIX11 {  \
+    SWAP(0, 1); SWAP(2, 3); SWAP(4, 5); SWAP(6, 7); SWAP(8, 9); \
+}
+
+#define NETSORT11 { \
+    PREFIX11;       \
+    SWAP(1, 3); SWAP(5, 7); SWAP(0, 2); SWAP(4, 6); SWAP(8, 10);    \
+    SWAP(1, 2); SWAP(5, 6); SWAP(9, 10); SWAP(1, 5); SWAP(6, 10);   \
+    SWAP(5, 9); SWAP(2, 6); SWAP(1, 5); SWAP(6, 10); SWAP(0, 4);    \
+    SWAP(3, 7); SWAP(4, 8); SWAP(0, 4); SWAP(1, 4); SWAP(7, 10);    \
+    SWAP(3, 8); SWAP(2, 3); SWAP(8, 9); SWAP(2, 4); SWAP(7, 9);     \
+    SWAP(3, 5); SWAP(6, 8); SWAP(3, 4); SWAP(5, 6); SWAP(7, 8);     \
+}
+
+/* Common prefix for 12, 14, 15, 16. */
+#define PREFIX12 {  \
+    PREFIX11;       \
+    SWAP(10, 11);   \
+}
+
+#define NETSORT12 { \
+    PREFIX12;       \
+    SWAP(1, 3); SWAP(5, 7); SWAP(9, 11); SWAP(0, 2); SWAP(4, 6);    \
+    SWAP(8, 10); SWAP(1, 2); SWAP(5, 6); SWAP(9, 10); SWAP(1, 5);   \
+    SWAP(6, 10); SWAP(5, 9); SWAP(2, 6); SWAP(1, 5); SWAP(6, 10);   \
+    SWAP(0, 4); SWAP(7, 11); SWAP(3, 7); SWAP(4, 8); SWAP(0, 4);    \
+    SWAP(7, 11); SWAP(1, 4); SWAP(7, 10); SWAP(3, 8); SWAP(2, 3);   \
+    SWAP(8, 9); SWAP(2, 4); SWAP(7, 9); SWAP(3, 5); SWAP(6, 8);     \
+    SWAP(3, 4); SWAP(5, 6); SWAP(7, 8); \
+}
+
+#define NETSORT13 { \
+    SWAP(1, 7); SWAP(9, 11); SWAP(3, 4); SWAP(5, 8); SWAP(0, 12);   \
+    SWAP(2, 6); SWAP(0, 1); SWAP(2, 3); SWAP(4, 6); SWAP(8, 11);    \
+    SWAP(7, 12); SWAP(5, 9); SWAP(0, 2); SWAP(3, 7); SWAP(10, 11);  \
+    SWAP(1, 4); SWAP(6, 12); SWAP(7, 8); SWAP(11, 12); SWAP(4, 9);  \
+    SWAP(6, 10); SWAP(3, 4); SWAP(5, 6); SWAP(8, 9); SWAP(10, 11);  \
+    SWAP(1, 7); SWAP(2, 6); SWAP(9, 11); SWAP(1, 3); SWAP(4, 7);    \
+    SWAP(8, 10); SWAP(0, 5); SWAP(2, 5); SWAP(6, 8); SWAP(9, 10);   \
+    SWAP(1, 2); SWAP(3, 5); SWAP(7, 8); SWAP(4, 6); SWAP(2, 3);     \
+    SWAP(4, 5); SWAP(6, 7); SWAP(8, 9); SWAP(3, 4); SWAP(5, 6);     \
+}
+
+#define NETSORT14 { \
+    PREFIX12;       \
+    SWAP(12, 13); SWAP(0, 2); SWAP(4, 6); SWAP(8, 10); SWAP(1, 3);      \
+    SWAP(5, 7); SWAP(9, 11); SWAP(0, 4); SWAP(8, 12); SWAP(1, 5);       \
+    SWAP(9, 13); SWAP(2, 6); SWAP(3, 7); SWAP(0, 8); SWAP(1, 9);        \
+    SWAP(2, 10); SWAP(3, 11); SWAP(4, 12); SWAP(5, 13); SWAP(5, 10);    \
+    SWAP(6, 9); SWAP(3, 12); SWAP(7, 11); SWAP(1, 2); SWAP(4, 8);       \
+    SWAP(1, 4); SWAP(7, 13); SWAP(2, 8); SWAP(2, 4); SWAP(5, 6);        \
+    SWAP(9, 10); SWAP(11, 13); SWAP(3, 8); SWAP(7, 12); SWAP(6, 8);     \
+    SWAP(10, 12); SWAP(3, 5); SWAP(7, 9); SWAP(3, 4); SWAP(5, 6);       \
+    SWAP(7, 8); SWAP(9, 10); SWAP(11, 12); SWAP(6, 7); SWAP(8, 9);      \
+}
+
+#define NETSORT15 { \
+    PREFIX12;       \
+    SWAP(12, 13); SWAP(0, 2); SWAP(4, 6); SWAP(8, 10); SWAP(12, 14);    \
+    SWAP(1, 3); SWAP(5, 7); SWAP(9, 11); SWAP(0, 4); SWAP(8, 12);       \
+    SWAP(1, 5); SWAP(9, 13); SWAP(2, 6); SWAP(10, 14); SWAP(3, 7);      \
+    SWAP(0, 8); SWAP(1, 9); SWAP(2, 10); SWAP(3, 11); SWAP(4, 12);      \
+    SWAP(5, 13); SWAP(6, 14); SWAP(5, 10); SWAP(6, 9); SWAP(3, 12);     \
+    SWAP(13, 14); SWAP(7, 11); SWAP(1, 2); SWAP(4, 8); SWAP(1, 4);      \
+    SWAP(7, 13); SWAP(2, 8); SWAP(11, 14); SWAP(2, 4); SWAP(5, 6);      \
+    SWAP(9, 10); SWAP(11, 13); SWAP(3, 8); SWAP(7, 12); SWAP(6, 8);     \
+    SWAP(10, 12); SWAP(3, 5); SWAP(7, 9); SWAP(3, 4); SWAP(5, 6);       \
+    SWAP(7, 8); SWAP(9, 10); SWAP(11, 12); SWAP(6, 7); SWAP(8, 9);      \
+}
+
+#define NETSORT16 { \
+    PREFIX12;       \
+    SWAP(12, 13); SWAP(14, 15); SWAP(0, 2); SWAP(4, 6); SWAP(8, 10);    \
+    SWAP(12, 14); SWAP(1, 3); SWAP(5, 7); SWAP(9, 11); SWAP(13, 15);    \
+    SWAP(0, 4); SWAP(8, 12); SWAP(1, 5); SWAP(9, 13); SWAP(2, 6);       \
+    SWAP(10, 14); SWAP(3, 7); SWAP(11, 15); SWAP(0, 8); SWAP(1, 9);     \
+    SWAP(2, 10); SWAP(3, 11); SWAP(4, 12); SWAP(5, 13); SWAP(6, 14);    \
+    SWAP(7, 15); SWAP(5, 10); SWAP(6, 9); SWAP(3, 12); SWAP(13, 14);    \
+    SWAP(7, 11); SWAP(1, 2); SWAP(4, 8); SWAP(1, 4); SWAP(7, 13);       \
+    SWAP(2, 8); SWAP(11, 14); SWAP(2, 4); SWAP(5, 6); SWAP(9, 10);      \
+    SWAP(11, 13); SWAP(3, 8); SWAP(7, 12); SWAP(6, 8); SWAP(10, 12);    \
+    SWAP(3, 5); SWAP(7, 9); SWAP(3, 4); SWAP(5, 6); SWAP(7, 8);         \
+    SWAP(9, 10); SWAP(11, 12); SWAP(6, 7); SWAP(8, 9);                  \
+}
+
+static void
+@ARG@smallsort_@suff@(@type@ *a,
+#if @arg@
+                      npy_intp *ind,
+#endif
+                      int n)
+{
+    switch (n) {
+        case 2: SWAP(0, 1); break;
+        case 3:  NETSORT3;  break;
+        case 4:  NETSORT4;  break;
+        case 5:  NETSORT5;  break;
+        case 6:  NETSORT6;  break;
+        case 7:  NETSORT7;  break;
+        case 8:  NETSORT8;  break;
+        case 9:  NETSORT9;  break;
+        case 10: NETSORT10; break;
+        case 11: NETSORT11; break;
+        case 12: NETSORT12; break;
+        case 13: NETSORT13; break;
+        case 14: NETSORT14; break;
+        case 15: NETSORT15; break;
+        case 16: NETSORT16; break;
+    }
+}
+
+#undef SWAP
+
+/**end repeat1**/
+/**end repeat**/
+
+
+/*
+ * Insertion sort.
+ */
+
+/**begin repeat
+ *
+ * #TYPE = BOOL, BYTE, UBYTE, SHORT, USHORT, INT, UINT, LONG, ULONG,
+ *         LONGLONG, ULONGLONG, HALF, LONGDOUBLE,
+ *         CFLOAT, CDOUBLE, CLONGDOUBLE, DATETIME, TIMEDELTA#
+ * #suff = bool, byte, ubyte, short, ushort, int, uint, long, ulong,
+ *         longlong, ulonglong, half, longdouble,
+ *         cfloat, cdouble, clongdouble, datetime, timedelta#
+ * #type = npy_bool, npy_byte, npy_ubyte, npy_short, npy_ushort, npy_int,
+ *         npy_uint, npy_long, npy_ulong, npy_longlong, npy_ulonglong,
+ *         npy_ushort, npy_longdouble, npy_cfloat,
+ *         npy_cdouble, npy_clongdouble, npy_datetime, npy_timedelta#
+ */
+static NPY_INLINE void
+smallsort_@suff@(@type@ *pl, int n)
+{
+    @type@ *pr = pl + n;
+    @type@ v;
+    @type@ *pi, *pj, *pk;
+
+    for (pi = pl + 1; pi < pr; ++pi) {
+        v = *pi;
+        pj = pi;
+        pk = pi - 1;
+        while (pj > pl && @TYPE@_LT(v, *pk)) {
+            *pj-- = *pk--;
+        }
+        *pj = v;
+    }
+}
+
+static NPY_INLINE void
+asmallsort_@suff@(@type@ *v, npy_intp *pl, int n)
+{
+    @type@ vp;
+    npy_intp *pr = pl + n;
+    npy_intp *pi, *pj, *pk, vi;
+
+    for (pi = pl + 1; pi < pr; ++pi) {
+        vi = *pi;
+        vp = v[vi];
+        pj = pi;
+        pk = pi - 1;
+        while (pj > pl && @TYPE@_LT(vp, v[*pk])) {
+            *pj-- = *pk--;
+        }
+        *pj = vi;
+    }
+}
+/**end repeat**/
 
 
 /**begin repeat
@@ -77,7 +347,7 @@ quicksort_@suff@(@type@ *start, npy_intp num, void *NOT_USED)
 #endif
 
     for (;;) {
-        while ((pr - pl) > SMALL_QUICKSORT) {
+        while ((pr - pl) >= SMALL_QUICKSORT) {
             /* quicksort partition */
             pm = pl + ((pr - pl) >> 1);
             if (@TYPE@_LT(*pm, *pl)) @TYPE@_SWAP(*pm, *pl);
@@ -110,16 +380,8 @@ quicksort_@suff@(@type@ *start, npy_intp num, void *NOT_USED)
             }
         }
 
-        /* insertion sort */
-        for (pi = pl + 1; pi <= pr; ++pi) {
-            vp = *pi;
-            pj = pi;
-            pk = pi - 1;
-            while (pj > pl && @TYPE@_LT(vp, *pk)) {
-                *pj-- = *pk--;
-            }
-            *pj = vp;
-        }
+        smallsort_@suff@(pl, pr - pl + 1);
+
         if (sptr == stack) {
             break;
         }
@@ -139,14 +401,14 @@ aquicksort_@suff@(@type@ *v, npy_intp* tosort, npy_intp num, void *NOT_USED)
     npy_intp *pr = tosort + num - 1;
     npy_intp *stack[PYA_QS_STACK];
     npy_intp **sptr = stack;
-    npy_intp *pm, *pi, *pj, *pk, vi;
+    npy_intp *pm, *pi, *pj, *pk;
 
 #if @movenans@
     @TYPE@_argmovenans(tosort, v, num);
 #endif
 
     for (;;) {
-        while ((pr - pl) > SMALL_QUICKSORT) {
+        while ((pr - pl) >= SMALL_QUICKSORT) {
             /* quicksort partition */
             pm = pl + ((pr - pl) >> 1);
             if (@TYPE@_LT(v[*pm],v[*pl])) INTP_SWAP(*pm, *pl);
@@ -179,17 +441,8 @@ aquicksort_@suff@(@type@ *v, npy_intp* tosort, npy_intp num, void *NOT_USED)
             }
         }
 
-        /* insertion sort */
-        for (pi = pl + 1; pi <= pr; ++pi) {
-            vi = *pi;
-            vp = v[vi];
-            pj = pi;
-            pk = pi - 1;
-            while (pj > pl && @TYPE@_LT(vp, v[*pk])) {
-                *pj-- = *pk--;
-            }
-            *pj = vi;
-        }
+        asmallsort_@suff@(v, pl, pr - pl + 1);
+
         if (sptr == stack) {
             break;
         }
