@@ -68,11 +68,11 @@ mergesort0_@suff@(@type@ *pl, @type@ *pr, @type@ *pw)
     switch (n) {
         case 0: break;
         case 1: break;
-        case 2: tinysort2_@suff@(pl); break;
-        case 3: tinysort3_@suff@(pl); break;
-        case 4: tinysort4_@suff@(pl); break;
-        case 5: tinysort5_@suff@(pl); break;
-        case 6: tinysort6_@suff@(pl); break;
+        case 2: sort2_@suff@(pl); break;
+        case 3: sort3_@suff@(pl); break;
+        case 4: sort4_@suff@(pl); break;
+        case 5: sort5_@suff@(pl); break;
+        case 6: sort6_@suff@(pl); break;
 
         default:
             pm = pl + (n >> 1);
@@ -120,44 +120,39 @@ mergesort_@suff@(@type@ *start, npy_intp num, void *NOT_USED)
 static void
 amergesort0_@suff@(npy_intp *pl, npy_intp *pr, @type@ *v, npy_intp *pw)
 {
-    @type@ vp;
-    npy_intp vi, *pi, *pj, *pk, *pm;
+    npy_intp n, *pi, *pj, *pk, *pm;
 
-    if (pr - pl > SMALL_MERGESORT) {
-        /* merge sort */
-        pm = pl + ((pr - pl) >> 1);
-        amergesort0_@suff@(pl, pm, v, pw);
-        amergesort0_@suff@(pm, pr, v, pw);
-        for (pi = pw, pj = pl; pj < pm;) {
-            *pi++ = *pj++;
-        }
-        pi = pw + (pm - pl);
-        pj = pw;
-        pk = pl;
-        while (pj < pi && pm < pr) {
-            if (@TYPE@_LT(v[*pm], v[*pj])) {
-                *pk++ = *pm++;
+    n = pr - pl;
+    switch (n) {
+        case 0: break;
+        case 1: break;
+        case 2: asort2_@suff@(pl, v); break;
+        case 3: asort3_@suff@(pl, v); break;
+        case 4: asort4_@suff@(pl, v); break;
+        case 5: asort5_@suff@(pl, v); break;
+        case 6: asort6_@suff@(pl, v); break;
+
+        default:
+            pm = pl + (n >> 1);
+            amergesort0_@suff@(pl, pm, v, pw);
+            amergesort0_@suff@(pm, pr, v, pw);
+            for (pi = pw, pj = pl; pj < pm;) {
+                *pi++ = *pj++;
             }
-            else {
+            pi = pw + (pm - pl);
+            pj = pw;
+            pk = pl;
+            while (pj < pi && pm < pr) {
+                if (@TYPE@_LT(v[*pm], v[*pj])) {
+                    *pk++ = *pm++;
+                }
+                else {
+                    *pk++ = *pj++;
+                }
+            }
+            while(pj < pi) {
                 *pk++ = *pj++;
             }
-        }
-        while(pj < pi) {
-            *pk++ = *pj++;
-        }
-    }
-    else {
-        /* insertion sort */
-        for (pi = pl + 1; pi < pr; ++pi) {
-            vi = *pi;
-            vp = v[vi];
-            pj = pi;
-            pk = pi - 1;
-            while (pj > pl && @TYPE@_LT(vp, v[*pk])) {
-                *pj-- = *pk--;
-            }
-            *pj = vi;
-        }
     }
 }
 
