@@ -30,6 +30,7 @@
 
 #include "npy_sort.h"
 #include "npysort_common.h"
+#include "movenans.h"
 #include <stdlib.h>
 
 #define NOT_USED NPY_UNUSED(unused)
@@ -58,6 +59,7 @@
  *         npy_uint, npy_long, npy_ulong, npy_longlong, npy_ulonglong,
  *         npy_ushort, npy_float, npy_double, npy_longdouble, npy_cfloat,
  *         npy_cdouble, npy_clongdouble, npy_datetime, npy_timedelta#
+ * #movenans = 0*11, 1*4, 0*5#
  */
 
 int
@@ -65,6 +67,10 @@ heapsort_@suff@(@type@ *start, npy_intp n, void *NOT_USED)
 {
     @type@ tmp, *a;
     npy_intp i,j,l;
+
+#if @movenans@
+    n = @TYPE@_movenans(start, n);
+#endif
 
     /* The array needs to be offset by one for heapsort indexing */
     a = start - 1;
@@ -117,6 +123,10 @@ aheapsort_@suff@(@type@ *v, npy_intp *tosort, npy_intp n, void *NOT_USED)
     npy_intp *a, i,j,l, tmp;
     /* The arrays need to be offset by one for heapsort indexing */
     a = tosort - 1;
+
+#if @movenans@
+    n = @TYPE@_argmovenans(tosort, v, n);
+#endif
 
     for (l = n>>1; l > 0; --l) {
         tmp = a[l];

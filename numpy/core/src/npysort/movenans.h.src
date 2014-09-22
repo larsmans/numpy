@@ -1,0 +1,56 @@
+/*
+ * Linear-time preprocessing loops that move quiet NaN elements out of the way
+ * for real floating types. This allows for cheaper comparisons on these types.
+ * All routines defined here are stable, so they can be used in mergesort.
+ * They return the number of non-QNaN elements in their input.
+ *
+ * Written by Lars Buitinck, 2014.
+ */
+
+#include "numpy/halffloat.h"
+
+/*
+ * Check only for quiet NaN. isnan is too expensive and destroys the benefit
+ * of preprocessing for n up to at least 1e8 on x86-64.
+ */
+#define ISQNAN(x)   ((x) != (x))
+
+/**begin repeat
+ *
+ * #TYPE = HALF, FLOAT, DOUBLE, LONGDOUBLE#
+ * #type = npy_half, npy_float, npy_double, npy_longdouble#
+ * #isnan = npy_half_isnan, ISQNAN*3#
+ * #NAN = HALF_NAN, NANF, NAN, NANL#
+ */
+
+static NPY_INLINE npy_intp
+@TYPE@_movenans(@type@ *a, npy_intp n)
+{
+    npy_intp i = n;
+
+    while (i > 0) {
+        i--;
+        if (@isnan@(a[i])) {
+            n--;
+            @TYPE@_SWAP(a[i], a[n]);
+        }
+    }
+    return n;
+}
+
+static NPY_INLINE npy_intp
+@TYPE@_argmovenans(npy_intp *ind, @type@ *a, npy_intp n)
+{
+    npy_intp i = n;
+
+    while (i > 0) {
+        i--;
+        if (@isnan@(a[ind[i]])) {
+            n--;
+            INTP_SWAP(ind[i], ind[n]);
+        }
+    }
+    return n;
+}
+
+/**end repeat*/

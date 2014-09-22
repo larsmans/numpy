@@ -117,36 +117,34 @@ ULONGLONG_LT(npy_ulonglong a, npy_ulonglong b)
 }
 
 
+/*
+ * We don't have to consider NaNs in the following four, since the sorting
+ * routines move them out of the way in a preprocessing step.
+ */
+
 NPY_INLINE static int
 FLOAT_LT(npy_float a, npy_float b)
 {
-    return a < b || (b != b && a == a);
+    return a < b;
 }
 
 
 NPY_INLINE static int
 DOUBLE_LT(npy_double a, npy_double b)
 {
-    return a < b || (b != b && a == a);
+    return a < b;
 }
 
 
 NPY_INLINE static int
 LONGDOUBLE_LT(npy_longdouble a, npy_longdouble b)
 {
-    return a < b || (b != b && a == a);
+    return a < b;
 }
 
 
 NPY_INLINE static int
-npy_half_isnan(npy_half h)
-{
-    return ((h&0x7c00u) == 0x7c00u) && ((h&0x03ffu) != 0x0000u);
-}
-
-
-NPY_INLINE static int
-npy_half_lt_nonan(npy_half h1, npy_half h2)
+HALF_LT(npy_half h1, npy_half h2)
 {
     if (h1&0x8000u) {
         if (h2&0x8000u) {
@@ -167,21 +165,6 @@ npy_half_lt_nonan(npy_half h1, npy_half h2)
     }
 }
 
-
-NPY_INLINE static int
-HALF_LT(npy_half a, npy_half b)
-{
-    int ret;
-
-    if (npy_half_isnan(b)) {
-        ret = !npy_half_isnan(a);
-    }
-    else {
-        ret = !npy_half_isnan(a) && npy_half_lt_nonan(a, b);
-    }
-
-    return ret;
-}
 
 /*
  * For inline functions SUN recommends not using a return in the then part

@@ -30,6 +30,7 @@
 
 #include "npy_sort.h"
 #include "npysort_common.h"
+#include "movenans.h"
 #include <stdlib.h>
 
 #define NOT_USED NPY_UNUSED(unused)
@@ -58,6 +59,7 @@
  *         npy_uint, npy_long, npy_ulong, npy_longlong, npy_ulonglong,
  *         npy_ushort, npy_float, npy_double, npy_longdouble, npy_cfloat,
  *         npy_cdouble, npy_clongdouble, npy_datetime, npy_timedelta#
+ * #movenans = 0*11, 1*4, 0*5#
  */
 
 int
@@ -69,6 +71,10 @@ quicksort_@suff@(@type@ *start, npy_intp num, void *NOT_USED)
     @type@ *stack[PYA_QS_STACK];
     @type@ **sptr = stack;
     @type@ *pm, *pi, *pj, *pk;
+
+#if @movenans@
+    num = @TYPE@_movenans(start, num);
+#endif
 
     for (;;) {
         while ((pr - pl) > SMALL_QUICKSORT) {
@@ -134,6 +140,10 @@ aquicksort_@suff@(@type@ *v, npy_intp* tosort, npy_intp num, void *NOT_USED)
     npy_intp *stack[PYA_QS_STACK];
     npy_intp **sptr = stack;
     npy_intp *pm, *pi, *pj, *pk, vi;
+
+#if @movenans@
+    @TYPE@_argmovenans(tosort, v, num);
+#endif
 
     for (;;) {
         while ((pr - pl) > SMALL_QUICKSORT) {

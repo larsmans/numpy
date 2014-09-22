@@ -30,6 +30,7 @@
 
 #include "npy_sort.h"
 #include "npysort_common.h"
+#include "movenans.h"
 #include <stdlib.h>
 
 #define NOT_USED NPY_UNUSED(unused)
@@ -58,6 +59,7 @@
  *         npy_uint, npy_long, npy_ulong, npy_longlong, npy_ulonglong,
  *         npy_ushort, npy_float, npy_double, npy_longdouble, npy_cfloat,
  *         npy_cdouble, npy_clongdouble, npy_datetime, npy_timedelta#
+ * #movenans = 0*11, 1*4, 0*5#
  */
 
 static void
@@ -107,6 +109,13 @@ int
 mergesort_@suff@(@type@ *start, npy_intp num, void *NOT_USED)
 {
     @type@ *pl, *pr, *pw;
+
+#if @movenans@
+    /* XXX We run the risk of moving the NaNs, then failing to allocate
+     * memory. But this way, we don't overallocate and the code is simpler.
+     */
+    num = @TYPE@_movenans(start, num);
+#endif
 
     pl = start;
     pr = pl + num;
@@ -170,6 +179,10 @@ int
 amergesort_@suff@(@type@ *v, npy_intp *tosort, npy_intp num, void *NOT_USED)
 {
     npy_intp *pl, *pr, *pw;
+
+#if @movenans@
+    num = @TYPE@_argmovenans(tosort, v, num);
+#endif
 
     pl = tosort;
     pr = pl + num;
