@@ -1423,6 +1423,13 @@ class TestMethods(TestCase):
             assert_(np.isnan(d[np.argpartition(d, (2, -1))][-1]))
             assert_(np.isnan(np.partition(d, (2, -1))[-1]))
 
+            # multiple NaNs
+            d = np.arange(13, dtype=np.float32)
+            d[1] = d[4] = d[7] = np.nan
+            d.partition(7)
+            assert_(not np.any(np.isnan(d[:10])))
+            assert_(np.all(np.isnan(d[-3:])))
+
             # equal elements
             d = np.arange((47)) % 7
             tgt = np.sort(np.arange((47)) % 7)
