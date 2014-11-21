@@ -4338,7 +4338,7 @@ cdef class RandomState:
         # order to preserve current outputs. Note that symmetry has not
         # been checked.
         (u, s, v) = svd(cov)
-        neg = (np.sum(u.T * v, axis=1) < 0) & (s > 0)
+        neg = (np.einsum('ji,ij,->i', u, v) < 0) & (s > 0)
         if np.any(neg):
             s[neg] = 0.
             warnings.warn("covariance is not positive-semidefinite.",
