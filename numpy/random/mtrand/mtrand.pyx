@@ -4299,9 +4299,11 @@ cdef class RandomState:
         """
         from numpy.dual import svd
 
+        cdef npy_intp n
+
         # Check preconditions on arguments
-        mean = np.array(mean)
-        cov = np.array(cov)
+        mean = np.asarray(mean)
+        cov = np.asarray(cov)
         if size is None:
             shape = []
         elif isinstance(size, (int, long, np.integer)):
@@ -4309,20 +4311,22 @@ cdef class RandomState:
         else:
             shape = size
 
-        if len(mean.shape) != 1:
-               raise ValueError("mean must be 1 dimensional")
-        if (len(cov.shape) != 2) or (cov.shape[0] != cov.shape[1]):
-               raise ValueError("cov must be 2 dimensional and square")
-        if mean.shape[0] != cov.shape[0]:
-               raise ValueError("mean and cov must have same length")
+        if PyArray_NDIM(mean) != 1:
+            raise ValueError("mean must be 1 dimensional")
+        if PyArray_NDIM(cov) != 2 or PyArray_DIM(cov, 0) != PyArray_DIM(cov, 1):
+            raise ValueError("cov must be 2 dimensional and square")
+        n = PyArray_SIZE(mean)
+        if PyArray_DIM(cov, 0) != n:
+            raise ValueError("mean and cov must have same length")
 
         # Compute shape of output and create a matrix of independent
         # standard normally distributed random numbers. The matrix has rows
         # with the same length as mean and as many rows are necessary to
         # form a matrix of shape final_shape.
         final_shape = list(shape[:])
-        final_shape.append(mean.shape[0])
-        x = self.standard_normal(final_shape).reshape(-1, mean.shape[0])
+        final_shape.append(n)
+        x = self.standard_normal(final_shape)
+        x.shape = (-1, n)
 
         # Transform matrix of standard normals into matrix where each row
         # contains multivariate normals with the desired covariance.
@@ -4338,13 +4342,13 @@ cdef class RandomState:
         # order to preserve current outputs. Note that symmetry has not
         # been checked.
         (u, s, v) = svd(cov)
-        neg = (np.sum(u.T * v, axis=1) < 0) & (s > 0)
+        neg = (np.einsum('ji,ij->i', u, v) < 0) & (s > 0)
         if np.any(neg):
             s[neg] = 0.
             warnings.warn("covariance is not positive-semidefinite.",
                           RuntimeWarning)
 
-        x = np.dot(x, np.sqrt(s)[:, None] * v)
+        x = np.dot(x, np.sqrt(s, out=s)[:, None] * v)
         x += mean
         x.shape = tuple(final_shape)
         return x
