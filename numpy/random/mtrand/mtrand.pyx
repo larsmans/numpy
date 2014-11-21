@@ -30,6 +30,7 @@ cdef extern from "math.h":
     double floor(double x)
     double sin(double x)
     double cos(double x)
+    double sqrt(double)
 
 cdef extern from "numpy/npy_math.h":
     int npy_isfinite(double x)
@@ -563,7 +564,7 @@ cdef double kahan_sum(double *darr, npy_intp n):
         sum = t
     return sum
 
-def _shape_from_size(size, d):
+cdef object shape_from_size(size, npy_intp d):
     if size is None:
         shape = (d,)
     else:
@@ -608,7 +609,7 @@ cdef class RandomState:
     """
     cdef rk_state *internal_state
     cdef object lock
-    poisson_lam_max = np.iinfo('l').max - np.sqrt(np.iinfo('l').max)*10
+    poisson_lam_max = <double>np.iinfo('l').max - sqrt(np.iinfo('l').max)*10
 
     def __init__(self, seed=None):
         self.internal_state = <rk_state*>PyMem_Malloc(sizeof(rk_state))
@@ -617,9 +618,8 @@ cdef class RandomState:
         self.lock = Lock()
 
     def __dealloc__(self):
-        if self.internal_state != NULL:
-            PyMem_Free(self.internal_state)
-            self.internal_state = NULL
+        PyMem_Free(self.internal_state)
+        self.internal_state = NULL
 
     def seed(self, seed=None):
         """
@@ -1056,10 +1056,12 @@ cdef class RandomState:
               dtype='|S11')
 
         """
+        cdef npy_intp pop_size
 
         # Format and Verify input
         a = np.array(a, copy=False)
-        if a.ndim == 0:
+        cdef int ndim = PyArray_NDIM(a)
+        if ndim == 0:
             try:
                 # __index__ must return an integer by python rules.
                 pop_size = operator.index(a.item())
@@ -1067,11 +1069,11 @@ cdef class RandomState:
                 raise ValueError("a must be 1-dimensional or an integer")
             if pop_size <= 0:
                 raise ValueError("a must be greater than 0")
-        elif a.ndim != 1:
+        elif ndim != 1:
             raise ValueError("a must be 1-dimensional")
         else:
-            pop_size = a.shape[0]
-            if pop_size is 0:
+            pop_size = PyArray_DIMS(a)[0]
+            if pop_size == 0:
                 raise ValueError("a must be non-empty")
 
         if p is not None:
@@ -1079,9 +1081,9 @@ cdef class RandomState:
             p = <ndarray>PyArray_ContiguousFromObject(p, NPY_DOUBLE, 1, 1)
             pix = <double*>PyArray_DATA(p)
 
-            if p.ndim != 1:
+            if PyArray_NDIM(p) != 1:
                 raise ValueError("p must be 1-dimensional")
-            if p.size != pop_size:
+            if PyArray_SIZE(p) != pop_size:
                 raise ValueError("a and p must have same size")
             if np.logical_or.reduce(p < 0):
                 raise ValueError("probabilities are not non-negative")
@@ -1114,7 +1116,7 @@ cdef class RandomState:
                     raise ValueError("Fewer non-zero entries in p than size")
                 n_uniq = 0
                 p = p.copy()
-                found = np.zeros(shape, dtype=np.int)
+                found = np.zeros(shape, dtype=np.intp)
                 flat_found = found.ravel()
                 while n_uniq < size:
                     x = self.rand(size - n_uniq)
@@ -1139,10 +1141,10 @@ cdef class RandomState:
             idx = idx.item(0)
 
         #Use samples as indices for a if a is array-like
-        if a.ndim == 0:
+        if PyArray_NDIM(a) == 0:
             return idx
 
-        if shape is not None and idx.ndim == 0:
+        if shape is not None and PyArray_NDIM(idx) == 0:
             # If size == () then the user requested a 0-d array as opposed to
             # a scalar object when size is None. However a[idx] is always a
             # scalar and not an array. So this makes sure the result is an
@@ -3814,7 +3816,7 @@ cdef class RandomState:
         cdef double flam
         flam = PyFloat_AsDouble(lam)
         if not PyErr_Occurred():
-            if lam < 0:
+            if flam < 0:
                 raise ValueError("lam < 0")
             if lam > self.poisson_lam_max:
                 raise ValueError("lam value too large")
@@ -4413,7 +4415,7 @@ cdef class RandomState:
         if kahan_sum(pix, d-1) > (1.0 + 1e-12):
             raise ValueError("sum(pvals[:-1]) > 1.0")
 
-        shape = _shape_from_size(size, d)
+        shape = shape_from_size(size, d)
 
         multin = np.zeros(shape, int)
         mnarr = <ndarray>multin
@@ -4528,7 +4530,7 @@ cdef class RandomState:
         alpha_arr   = <ndarray>PyArray_ContiguousFromObject(alpha, NPY_DOUBLE, 1, 1)
         alpha_data  = <double*>PyArray_DATA(alpha_arr)
 
-        shape = _shape_from_size(size, k)
+        shape = shape_from_size(size, k)
 
         diric   = np.zeros(shape, np.float64)
         val_arr = <ndarray>diric
@@ -4589,8 +4591,8 @@ cdef class RandomState:
         i = len(x) - 1
 
         # Logic adapted from random.shuffle()
-        if isinstance(x, np.ndarray) and \
-           (x.ndim > 1 or x.dtype.fields is not None):
+        if (isinstance(x, np.ndarray) and
+                (PyArray_NDIM(x) > 1 or x.dtype.fields is not None)):
             # For a multi-dimensional ndarray, indexing returns a view onto
             # each row. So we can't just use ordinary assignment to swap the
             # rows; we need a bounce buffer.
